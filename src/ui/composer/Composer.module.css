@@ -344,3 +344,38 @@
 .stop:hover:not(:disabled) {
   background: var(--dsw-alias-interactive-bg-hover-solid);
 }
+
+/* /optchat output: OptChat runs inside omo, so OmO UI shows its command result here. */
+.optchatPanel {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: var(--dsh-composer-card-max-width);
+  margin-bottom: 8px;
+  border: 1px solid var(--dsw-alias-border-l3);
+  border-radius: var(--dsw-radius-panel);
+  background: var(--dsw-specific-input-major);
+  color: var(--dsw-alias-label-primary);
+}
+
+.optchatHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px 0 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.optchatBody {
+  margin: 0;
+  padding: 6px 14px 12px;
+  max-height: 45vh;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 18px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

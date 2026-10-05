@@ -333,6 +333,28 @@
   text-overflow: ellipsis;
 }
 
+.usagePill {
+  flex: none;
+  gap: 4px;
+  padding: 0 7px;
+  height: 20px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.usagePill[data-level="mid"] {
+  color: var(--dsw-alias-state-warn-primary);
+}
+
+.usagePill[data-level="high"] {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.usageReset {
+  opacity: 0.6;
+}
+
 .connection {
   flex: none;
   display: inline-flex;

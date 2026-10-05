@@ -14,7 +14,7 @@ import { updatePreferences, useUiState } from "../ui-state";
 import { ModelPicker } from "./ModelPicker";
 import { SkillMenu } from "./SkillMenu";
 import type { SkillMenuStatus } from "./SkillMenu";
-import { acceptCommand, matchCommands, menuOptions } from "./commands";
+import { acceptCommand, matchCommands, menuOptions, parseOptchatCommand } from "./commands";
 import type { MenuOption } from "./commands";
 import { detectMagicKeyword, segmentDraft } from "./magic-keyword";
 import { acceptSkill, detectSkillTrigger, pruneSelected, rankSkills, serializeSkillDraft } from "./skill-draft";
@@ -76,6 +76,7 @@ export function Composer() {
   const [images, setImages] = useState<ImageInput[]>([]);
   const [imageNotice, setImageNotice] = useState("");
   const [dropping, setDropping] = useState(false);
+  const [optchatOut, setOptchatOut] = useState<string | null>(null);
   const imageDrafts = useRef(new Map<string, ImageInput[]>());
   const imagesRef = useRef(images);
   imagesRef.current = images;
@@ -259,6 +260,20 @@ export function Composer() {
   const submit = async (): Promise<void> => {
     const message = text.trim();
     if (!canSend) return;
+    const optchatArgs = parseOptchatCommand(message);
+    if (optchatArgs !== null && images.length === 0) {
+      setBusy(true);
+      try {
+        const out = await actions.optchat(optchatArgs);
+        if (out === null) return;
+        setOptchatOut(out);
+        setDraft(EMPTY_DRAFT);
+        setDismissedStart(null);
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     const command = parseBtwCommand(message);
     if (command !== null && images.length === 0) {
       routeSideCommand(command.question);
@@ -331,12 +346,23 @@ export function Composer() {
         ? t("composer.placeholder.running")
         : t("composer.placeholder.idle");
   // A /btw or /side draft goes to the side panel, so it never steers the running turn.
-  const steers = turnActive && parseBtwCommand(text) === null;
+  const steers = turnActive && parseBtwCommand(text) === null && parseOptchatCommand(text) === null;
   const sendLabel = steers ? t("composer.steer") : t("composer.send");
 
   return (
     <div className={css.root}>
       <ConversationDock />
+      {optchatOut !== null && (
+        <div className={css.optchatPanel} role="region" aria-label="OptChat">
+          <div className={css.optchatHeader}>
+            <span>OptChat</span>
+            <button type="button" className={css.chip} aria-label={t("optchat.close")} onClick={() => setOptchatOut(null)}>
+              <IconCloseOutlineRegular size={14} />
+            </button>
+          </div>
+          <pre className={css.optchatBody}>{optchatOut}</pre>
+        </div>
+      )}
       <div
         className={clsx(css.card, !connected && css.cardDisabled, keyword !== null && css.cardMagic, dropping && css.cardDrop)}
         data-testid={TESTID.composer}

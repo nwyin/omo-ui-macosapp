@@ -3,10 +3,12 @@ import { useLayoutEffect, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import clsx from "clsx";
 import {
+  IconArchiveOutlineRegular,
   IconChevronDownOutlineRegular,
   IconEditOutlineRegular,
   IconFolderOpenOutlineRegular,
   IconTrashOutlineRegular,
+  IconUnarchiveOutlineRegular,
   Menu,
   StateDot,
   Tooltip,
@@ -123,10 +125,12 @@ interface ThreadRowProps {
   onOpen(threadId: string): void;
   onRename(threadId: string, name: string): void;
   onRequestDelete(threadId: string, title: string): void;
+  archived: boolean;
+  onArchive(threadId: string): void;
   onReveal(cwd: string): void;
 }
 
-export function ThreadRow({ thread, active, nowMs, onOpen, onRename, onRequestDelete, onReveal }: ThreadRowProps) {
+export function ThreadRow({ thread, active, nowMs, onOpen, onRename, onRequestDelete, archived, onArchive, onReveal }: ThreadRowProps) {
   const t = useT();
   const [menuOpen, setMenuOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
@@ -160,6 +164,9 @@ export function ThreadRow({ thread, active, nowMs, onOpen, onRename, onRequestDe
   const items: MenuEntry[] = [
     { id: "rename", label: t("shell.sidebar.rename"), icon: <IconEditOutlineRegular /> },
     { id: "reveal", label: t("shell.sidebar.revealInFinder"), icon: <IconFolderOpenOutlineRegular /> },
+    archived
+      ? { id: "archive", label: t("shell.sidebar.unarchive"), icon: <IconUnarchiveOutlineRegular /> }
+      : { id: "archive", label: t("shell.sidebar.archive"), icon: <IconArchiveOutlineRegular /> },
     { type: "separator", id: "danger" },
     { id: "delete", label: t("shell.sidebar.delete"), icon: <IconTrashOutlineRegular />, danger: true },
   ];
@@ -172,6 +179,9 @@ export function ThreadRow({ thread, active, nowMs, onOpen, onRename, onRequestDe
         break;
       case "reveal":
         onReveal(thread.cwd);
+        break;
+      case "archive":
+        onArchive(thread.id);
         break;
       case "delete":
         onRequestDelete(thread.id, title);

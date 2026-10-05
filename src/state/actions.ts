@@ -84,6 +84,8 @@ export interface AppActions {
   connect(): () => void;
   refreshModels(): Promise<void>;
   refreshThreads(append?: boolean): Promise<void>;
+  /** Switches the thread list between active and archived threads and reloads it. */
+  showArchived(on: boolean): Promise<void>;
   /** Requests a cwd catalog only after a thread for that cwd is loaded; force reloads the server's session loader. */
   loadSkills(cwd: string, options?: { force?: boolean }): Promise<void>;
   /** Loads an idle or invalidated catalog, never creating/resuming a thread or requesting a pre-thread fallback catalog. */
@@ -103,6 +105,10 @@ export interface AppActions {
   branchFrom(threadId: string, turnId: string, itemId: string, text: string, name: string): Promise<boolean>;
   renameThread(threadId: string, name: string): Promise<void>;
   deleteThread(threadId: string): Promise<void>;
+  archiveThread(threadId: string): Promise<void>;
+  unarchiveThread(threadId: string): Promise<void>;
+  /** Runs `/optchat <args>` through the OptChat extension's RPC handler; null (with an error notice) on failure. */
+  optchat(args: string): Promise<string | null>;
   answerApproval(id: RequestId, decision: ApprovalDecision, reason?: string): Promise<void>;
   answerUserInput(id: RequestId, answers: Record<string, string[]>, comment?: string): Promise<void>;
   selectModel(modelId: string | null, effort: ReasoningEffort | null, profile?: import("../../shared/ipc").ModelProfile): Promise<void>;
@@ -245,13 +251,15 @@ export function createActions(store: AppStore, bridge: OmoBridgeApi, options: Ac
       store.dispatch({ type: "models/loaded", models: result.data.filter(isModel) });
     });
 
+  let listArchived = false;
+
   const refreshThreads = (append = false): Promise<void> =>
     guarded(async () => {
       const cursor = store.getState().threadsCursor;
       if (append && cursor === null) return;
       const result = await bridge.request(
         "thread/list",
-        append ? { limit: THREAD_PAGE_SIZE, cursor } : { limit: THREAD_PAGE_SIZE },
+        append ? { limit: THREAD_PAGE_SIZE, cursor, archived: listArchived } : { limit: THREAD_PAGE_SIZE, archived: listArchived },
       );
       if (!Array.isArray(result.data)) throw new Error("omo returned a malformed thread/list result");
       const nextCursor = typeof result.nextCursor === "string" ? result.nextCursor : null;
@@ -505,6 +513,10 @@ export function createActions(store: AppStore, bridge: OmoBridgeApi, options: Ac
     setMcpSectionOpen(open) { mcpSectionOpen = open; },
     refreshModels,
     refreshThreads,
+    showArchived: (on) => {
+      listArchived = on;
+      return refreshThreads();
+    },
     loadSkills,
     ensureSkills,
 
@@ -637,6 +649,43 @@ export function createActions(store: AppStore, bridge: OmoBridgeApi, options: Ac
         store.dispatch({
           type: "rpc/notification",
           notification: { method: "thread/deleted", params: { threadId } },
+          receivedAtMs: now(),
+        });
+      }, threadId),
+
+    archiveThread: (threadId) =>
+      guarded(async () => {
+        await bridge.request("thread/archive", { threadId });
+        store.dispatch({
+          type: "rpc/notification",
+          notification: { method: "thread/archived", params: { threadId } },
+          receivedAtMs: now(),
+        });
+      }, threadId),
+
+    optchat: async (args) => {
+      const threadId = store.getState().activeThreadId;
+      if (threadId === null) {
+        notify("error", "Open a session first to use /optchat.");
+        return null;
+      }
+      try {
+        const result = (await bridge.request("extension_request", { threadId, name: "optchat", data: { args } })) as { text?: unknown } | null;
+        if (typeof result?.text !== "string") throw new Error("OptChat returned a malformed result");
+        return result.text;
+      } catch (error) {
+        fail(error, threadId);
+        return null;
+      }
+    },
+
+    unarchiveThread: (threadId) =>
+      guarded(async () => {
+        await bridge.request("thread/unarchive", { threadId });
+        // Only the archived view offers unarchive, so the thread leaves the list shown there.
+        store.dispatch({
+          type: "rpc/notification",
+          notification: { method: "thread/archived", params: { threadId } },
           receivedAtMs: now(),
         });
       }, threadId),

@@ -11,7 +11,7 @@ import {
   Tooltip,
 } from "@deepseek-ai/dsh-client-ui-primitives";
 import type { StateDotState } from "@deepseek-ai/dsh-client-ui-primitives";
-import type { BridgeState, BridgeStatus } from "../../../shared/ipc";
+import type { AccountUsage, BridgeState, BridgeStatus } from "../../../shared/ipc";
 import { selectThreadsByWorkspace } from "../../state";
 import type { ThreadSummary } from "../../state";
 import { useT } from "../../i18n";
@@ -28,6 +28,44 @@ import { ThreadRow, WorkspaceRow } from "./Rows";
 import { filterGroups, isRunning } from "./thread-filter";
 import type { ThreadPeriod } from "./thread-filter";
 import css from "./Sidebar.module.css";
+
+const USAGE_PILLS = [
+  { provider: "anthropic-subscription", short: "C", name: "Claude" },
+  { provider: "chatgpt-subscription", short: "G", name: "ChatGPT" },
+] as const;
+
+function UsagePills() {
+  const [usage, setUsage] = useState<AccountUsage[]>([]);
+  useEffect(() => {
+    const load = (): void => void window.omo.readAccountUsage().then(setUsage, () => setUsage([]));
+    load();
+    const timer = window.setInterval(load, 60_000);
+    window.addEventListener("focus", load);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", load);
+    };
+  }, []);
+  return (
+    <>
+      {USAGE_PILLS.map(({ provider, short, name }) => {
+        const weekly = usage
+          .filter((entry) => entry.provider === provider && entry.state === "ok")
+          .flatMap((entry) => entry.windows)
+          .find((window) => window.label === "weekly");
+        if (weekly === undefined || weekly.percent === null) return null;
+        const hours = weekly.resetsAt === null ? null : Math.max(0, Math.round((Date.parse(weekly.resetsAt) - Date.now()) / 3_600_000));
+        const level = weekly.limited || weekly.percent >= 90 ? "high" : weekly.percent >= 70 ? "mid" : "low";
+        return (
+          <Pill key={provider} className={css.usagePill} data-level={level}
+            title={`${name} weekly: ${Math.round(weekly.percent)}% used${hours === null ? "" : `, resets in ${hours}h`}`}>
+            {short} {Math.round(weekly.percent)}%{hours !== null && <span className={css.usageReset}>{hours}h</span>}
+          </Pill>
+        );
+      })}
+    </>
+  );
+}
 
 const DOT_STATE: Record<BridgeState, StateDotState> = {
   locating: "ongoing",
@@ -90,6 +128,7 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => new Set());
   const [query, setQuery] = useState("");
   const [runningOnly, setRunningOnly] = useState(false);
+  const [archivedView, setArchivedView] = useState(false);
   const [period, setPeriod] = useState<ThreadPeriod>("any");
   const [loadingMore, setLoadingMore] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
@@ -240,6 +279,17 @@ export function Sidebar() {
             {t(`shell.filter.${option}`)}
           </Pill>
         ))}
+        <Pill
+          active={archivedView}
+          aria-pressed={archivedView}
+          title={t("shell.filter.archivedHint")}
+          onClick={() => {
+            setArchivedView(!archivedView);
+            void actions.showArchived(!archivedView);
+          }}
+        >
+          {t("shell.filter.archived")}
+        </Pill>
       </div>
       <div className={css.region}>
         <div className={css.list}>
@@ -291,6 +341,8 @@ export function Sidebar() {
                       onOpen={(threadId) => void actions.openThread(threadId)}
                       onRename={(threadId, name) => void actions.renameThread(threadId, name)}
                       onRequestDelete={(threadId, title) => setDeleteTarget({ threadId, title })}
+                      archived={archivedView}
+                      onArchive={(threadId) => void (archivedView ? actions.unarchiveThread(threadId) : actions.archiveThread(threadId))}
                       onReveal={reveal}
                     />
                   ))}
@@ -326,6 +378,7 @@ export function Sidebar() {
           <IconSettingsOutlineMedium size={16} />
           <span className={css.settingsLabel}>{t("shell.openSettings")}</span>
         </button>
+        <UsagePills />
         <ConnectionDot bridge={bridge} />
       </div>
       <DeleteThreadDialog target={deleteTarget} onClose={() => setDeleteTarget(null)} />

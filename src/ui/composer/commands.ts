@@ -12,7 +12,14 @@ export interface ComposerCommand {
 /** `/btw` (alias `/side`) asks a side question; `parseBtwCommand` in src/state/btw.ts reads it at send time. */
 export const COMPOSER_COMMANDS: readonly ComposerCommand[] = [
   { name: "btw", aliases: ["side"], description: "btw.command.description" },
+  { name: "optchat", aliases: [], description: "optchat.command.description" },
 ];
+
+/** @returns the arguments of a `/optchat [status|view|on|off]` draft, or null for any other text */
+export function parseOptchatCommand(text: string): string | null {
+  const match = /^\/optchat(?:\s+([\s\S]*))?$/iu.exec(text.trim());
+  return match === null ? null : (match[1] ?? "").trim();
+}
 
 export type MenuOption = { kind: "command"; command: ComposerCommand } | { kind: "skill"; skill: SkillMetadata };
 

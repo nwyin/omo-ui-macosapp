@@ -31,6 +31,8 @@ export const messages = {
     "btw.command.description": "Ask a side question without touching this thread",
     "btw.command.kind": "Command",
     "btw.command.alias": "or /{alias}",
+    "optchat.command.description": "OptChat memory: status | view | on | off",
+    "optchat.close": "Close OptChat output",
   },
   ko: {
     "btw.badge": "BTW",
@@ -64,5 +66,7 @@ export const messages = {
     "btw.command.description": "이 스레드를 건드리지 않고 곁질문하기",
     "btw.command.kind": "명령",
     "btw.command.alias": "또는 /{alias}",
+    "optchat.command.description": "OptChat 메모리: status | view | on | off",
+    "optchat.close": "OptChat 출력 닫기",
   },
 } as const;

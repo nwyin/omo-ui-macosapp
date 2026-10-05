@@ -359,6 +359,7 @@ export interface ClientRequestMap {
   "thread/read": { params: { threadId: string; includeTurns?: boolean }; result: { thread: Thread } };
   "thread/name/set": { params: { threadId: string; name: string }; result: Record<string, never> };
   "thread/archive": { params: { threadId: string }; result: Record<string, never> };
+  "thread/unarchive": { params: { threadId: string }; result: Record<string, never> };
   "thread/delete": { params: { threadId: string }; result: Record<string, never> };
   "turn/start": {
     params: {
@@ -395,6 +396,7 @@ export const CLIENT_METHODS = [
   "thread/read",
   "thread/name/set",
   "thread/archive",
+  "thread/unarchive",
   "thread/delete",
   "turn/start",
   "turn/steer",
